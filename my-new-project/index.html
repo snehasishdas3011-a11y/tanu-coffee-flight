@@ -1,7 +1,7 @@
 <title>Boarding Call ☕</title>
 <style>
 /* =========================================================
-   BOARDING CALL — Air India-inspired coffee invitation
+   BOARDING CALL — aviation-inspired coffee invitation
    Layout: Single-page, full-screen state machine
    ========================================================= */
 
@@ -416,6 +416,15 @@ button {
   padding-top: 14px;
   border-top: 1px dashed var(--border);
 }
+.ashish-signoff {
+  margin-top: 14px;
+  text-align: right;
+  color: var(--red-dark);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-style: italic;
+}
+.ashish-signoff strong { font-style: normal; }
 
 /* ── QUESTION SECTION ── */
 .question-section {
@@ -784,7 +793,16 @@ button {
   95%  { opacity: 1; }
   100% { left: calc(100vw + 80px); top: 15%; opacity: 0; }
 }
-.plane-trail svg { width: 36px; }
+.plane-trail svg { width: 36px; display: block; position: relative; z-index: 1; }
+/* A subtle dotted contrail follows the plane across the sky. */
+.plane-trail::after {
+  content: '';
+  position: absolute;
+  width: 72px;
+  top: 9px;
+  right: 28px;
+  border-top: 2px dotted rgba(200,16,46,0.38);
+}
 
 /* ── FLIP ANIMATION (first NO) ── */
 .flip-out {
@@ -1051,6 +1069,7 @@ button {
             <p>No pressure at all if you're not interested — I just wanted to be honest about how I feel and ask you properly. ☺️❤️</p>
           </div>
           <div class="message-footer">No booking fees. No expectations. Just one coffee. ☕</div>
+          <p class="ashish-signoff">Your co-pilot for a coffee date — <strong>Ashish</strong> ☕✈️</p>
         </div>
       </div>
 
