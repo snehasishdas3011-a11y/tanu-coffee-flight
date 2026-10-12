@@ -1,0 +1,1591 @@
+<title>Boarding Call ☕</title>
+<style>
+/* =========================================================
+   BOARDING CALL — Air India-inspired coffee invitation
+   Layout: Single-page, full-screen state machine
+   ========================================================= */
+
+/* ── DESIGN TOKENS ── */
+:root {
+  /* Colors — warm ivory base, aviation red accent */
+  --red:        #C8102E;
+  --red-dark:   #7D1424;
+  --red-muted:  #E8889A;
+  --ivory:      #FFF9F2;
+  --ivory-2:    #F5EDE3;
+  --blush:      #F8E2E2;
+  --charcoal:   #292326;
+  --ink:        #3A2E32;
+  --muted:      #7A6268;
+  --white:      #FFFFFF;
+  --border:     rgba(200,16,46,0.18);
+  --shadow:     0 4px 32px rgba(41,35,38,0.10);
+  --shadow-lg:  0 12px 48px rgba(41,35,38,0.16);
+
+  /* Typography */
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body:    'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-label:   'DM Mono', 'Courier New', monospace;
+
+  /* Spacing rhythm */
+  --gap-s:  12px;
+  --gap-m:  24px;
+  --gap-l:  40px;
+  --gap-xl: 64px;
+
+  color-scheme: light;
+}
+
+/* Single-theme design — ivory/red aviation aesthetic */
+/* (Deliberately light-only; the romantic warmth is core to the piece.) */
+:root[data-theme="dark"],
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivory:   #1C1416;
+  --ivory-2: #251B1E;
+  --blush:   #2A1A1C;
+  --charcoal:#F0E8EA;
+  --ink:     #DDD0D3;
+  --muted:   #9A8890;
+  --border:  rgba(200,16,46,0.25);
+  --shadow:     0 4px 32px rgba(0,0,0,0.35);
+  --shadow-lg:  0 12px 48px rgba(0,0,0,0.45);
+  color-scheme: dark;
+}}
+:root[data-theme="dark"] {
+  --ivory:   #1C1416;
+  --ivory-2: #251B1E;
+  --blush:   #2A1A1C;
+  --charcoal:#F0E8EA;
+  --ink:     #DDD0D3;
+  --muted:   #9A8890;
+  --border:  rgba(200,16,46,0.25);
+  --shadow:     0 4px 32px rgba(0,0,0,0.35);
+  --shadow-lg:  0 12px 48px rgba(0,0,0,0.45);
+  color-scheme: dark;
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--ivory);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* ── SCREEN STATE MACHINE ── */
+.screen {
+  display: none;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+}
+.screen.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── SKY CANVAS (shared background) ── */
+.sky-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* ── CLOUDS ── */
+.cloud {
+  position: absolute;
+  background: var(--white);
+  border-radius: 50px;
+  opacity: 0.55;
+  animation: driftCloud linear infinite;
+}
+.cloud::before, .cloud::after {
+  content: '';
+  position: absolute;
+  background: var(--white);
+  border-radius: 50%;
+}
+.c1 { width:110px; height:38px; top:12%; animation-duration:38s; animation-delay:-5s; }
+.c1::before { width:55px;height:55px; top:-28px; left:18px; }
+.c1::after  { width:40px;height:40px; top:-20px; left:52px; }
+.c2 { width:80px;  height:28px; top:28%; animation-duration:55s; animation-delay:-18s; opacity:0.35;}
+.c2::before { width:40px;height:40px; top:-22px;left:12px; }
+.c2::after  { width:30px;height:30px; top:-14px;left:42px; }
+.c3 { width:140px; height:44px; top:65%; animation-duration:45s; animation-delay:-30s; opacity:0.4;}
+.c3::before { width:65px;height:65px; top:-35px;left:20px; }
+.c3::after  { width:50px;height:50px; top:-25px;left:72px; }
+.c4 { width:60px;  height:22px; top:80%; animation-duration:62s; animation-delay:-8s; opacity:0.28;}
+.c4::before { width:30px;height:30px; top:-16px;left:10px; }
+.c4::after  { width:22px;height:22px; top:-10px;left:32px; }
+
+@keyframes driftCloud {
+  from { transform: translateX(-200px); }
+  to   { transform: translateX(calc(100vw + 200px)); }
+}
+
+/* ── FLIGHT PATH + AIRPLANE ── */
+.flight-path-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.flight-path-svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── MAIN CONTENT WRAPPER ── */
+.content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 640px;
+  padding: 0 20px;
+  margin: 0 auto;
+}
+
+/* ── EYEBROW LABEL ── */
+.eyebrow {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eyebrow::before, .eyebrow::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--red);
+  opacity: 0.3;
+}
+
+/* ── AIRLINE TOP BAR ── */
+.airline-bar {
+  background: var(--red);
+  color: var(--white);
+  width: 100%;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 10;
+}
+.airline-bar-logo {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.airline-bar-status {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+
+/* ── DEPARTURE BOARD TICKER ── */
+.dep-board {
+  background: var(--charcoal);
+  color: var(--ivory);
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  padding: 7px 20px;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+  overflow: hidden;
+}
+.dep-board-inner {
+  white-space: nowrap;
+  display: inline-block;
+  animation: ticker 28s linear infinite;
+}
+.dep-sep { margin: 0 24px; opacity: 0.4; }
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ── BOARDING PASS CARD ── */
+.boarding-pass {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+  animation: slideUp 0.7s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bp-header {
+  background: var(--red);
+  color: var(--white);
+  padding: 18px 24px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bp-airline {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.bp-class {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  opacity: 0.88;
+  background: rgba(255,255,255,0.18);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.bp-route {
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1.5px dashed var(--border);
+}
+.bp-city {
+  text-align: center;
+  flex: 1;
+}
+.bp-city-code {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--red-dark);
+  line-height: 1;
+}
+.bp-city-name {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.bp-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.bp-plane-icon {
+  color: var(--red);
+  font-size: 20px;
+  animation: rocking 3s ease-in-out infinite;
+}
+@keyframes rocking {
+  0%,100% { transform: rotate(0deg) translateY(0); }
+  25%      { transform: rotate(3deg) translateY(-2px); }
+  75%      { transform: rotate(-3deg) translateY(2px); }
+}
+.bp-dash-line {
+  width: 60px;
+  border-top: 2px dashed var(--red-muted);
+}
+
+.bp-meta {
+  padding: 14px 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  border-bottom: 1.5px dashed var(--border);
+}
+.bp-field {}
+.bp-field-label {
+  font-family: var(--font-label);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bp-field-value {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+/* Perforation cut */
+.bp-perf {
+  position: relative;
+  height: 0;
+  margin: 0 -1px;
+}
+.bp-perf::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  background: var(--ivory);
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+}
+.bp-perf::after {
+  content: '';
+  position: absolute;
+  right: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  background: var(--ivory);
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+}
+
+.bp-body {
+  padding: 20px 24px 10px;
+}
+
+/* ── PERSONAL MESSAGE ── */
+.message-card {
+  background: var(--ivory-2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 16px;
+  border-left: 3px solid var(--red);
+  animation: slideUp 0.7s 0.2s cubic-bezier(0.22,1,0.36,1) both;
+}
+.message-heading {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 12px;
+}
+.message-text {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+.message-text p + p { margin-top: 12px; }
+
+.message-footer {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+
+/* ── QUESTION SECTION ── */
+.question-section {
+  text-align: center;
+  padding: var(--gap-m) 0;
+  animation: slideUp 0.7s 0.35s cubic-bezier(0.22,1,0.36,1) both;
+}
+.question-headline {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 4vw, 22px);
+  color: var(--red-dark);
+  margin-bottom: var(--gap-m);
+}
+
+/* ── BUTTONS ── */
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.btn-primary {
+  background: var(--red);
+  color: var(--white);
+  padding: 16px 28px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 18px rgba(200,16,46,0.3);
+  position: relative;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-primary:hover { background: var(--red-dark); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,16,46,0.35); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--red);
+  border: 2px solid var(--red);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.btn-secondary:hover { background: var(--blush); }
+.btn-secondary:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px solid var(--border);
+  padding: 13px 24px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  transition: all 0.2s;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-ghost:hover { border-color: var(--red-muted); color: var(--red-dark); }
+.btn-ghost:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+
+/* NO button container — constrained for dodging */
+.no-btn-zone {
+  position: relative;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.no-microcopy {
+  font-family: var(--font-label);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-align: center;
+  min-height: 16px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.no-microcopy.visible { opacity: 1; }
+
+/* ── COFFEE CUP SVG INLINE ── */
+.coffee-bounce {
+  display: inline-block;
+  animation: coffeeBounce 2.2s ease-in-out infinite;
+}
+@keyframes coffeeBounce {
+  0%,100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-8px) rotate(2deg); }
+}
+
+/* ── ANNOUNCE CARD (cabin crew panels) ── */
+.announce-card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  width: 100%;
+  animation: slideUp 0.6s cubic-bezier(0.22,1,0.36,1) both;
+}
+.announce-header {
+  background: linear-gradient(135deg, var(--red-dark) 0%, var(--red) 100%);
+  color: var(--white);
+  padding: 18px 24px;
+  text-align: center;
+}
+.announce-icon { font-size: 32px; margin-bottom: 8px; }
+.announce-title {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 5vw, 26px);
+  font-weight: 700;
+}
+.announce-sub {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-top: 6px;
+}
+.announce-body {
+  padding: 22px 24px;
+}
+.announce-text {
+  font-size: 15px;
+  line-height: 1.78;
+  color: var(--ink);
+}
+.announce-text p + p { margin-top: 12px; }
+
+/* ── ITINERARY LIST ── */
+.itinerary {
+  background: var(--ivory-2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 18px 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.itinerary li {
+  font-size: 14px;
+  color: var(--ink);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.itinerary li span:first-child { flex-shrink: 0; }
+
+/* ── EVIDENCE CARDS (courtroom) ── */
+.evidence-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 18px 0;
+}
+.evidence-card {
+  background: var(--ivory-2);
+  border-radius: 12px;
+  padding: 16px 18px;
+  border-top: 3px solid var(--red);
+  animation: slideUp 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+.evidence-card:nth-child(2) { animation-delay: 0.1s; }
+.evidence-card:nth-child(3) { animation-delay: 0.2s; }
+.evidence-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 8px;
+}
+.evidence-text {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+/* ── SUCCESS SCREEN ── */
+.success-card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  width: 100%;
+  animation: successPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes successPop {
+  from { opacity: 0; transform: scale(0.88) translateY(30px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.success-header {
+  background: linear-gradient(135deg, var(--red) 0%, #e8264a 60%, var(--red-dark) 100%);
+  color: var(--white);
+  padding: 28px 24px 22px;
+  text-align: center;
+}
+.success-emoji { font-size: 48px; animation: heartPulse 1.2s ease-in-out infinite; margin-bottom: 10px; }
+@keyframes heartPulse {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
+.success-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 6vw, 34px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.success-sub {
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  opacity: 0.9;
+  margin-top: 8px;
+}
+.success-body { padding: 24px; }
+.success-text {
+  font-size: 15px;
+  line-height: 1.78;
+  color: var(--ink);
+  margin-bottom: 22px;
+}
+.success-text p + p { margin-top: 12px; }
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.status-item {
+  background: var(--ivory-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--red);
+}
+.status-key {
+  font-family: var(--font-label);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.status-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 3px;
+}
+
+/* ── FINAL NO SCREEN ── */
+.final-no-card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  width: 100%;
+  animation: slideUp 0.7s cubic-bezier(0.22,1,0.36,1) both;
+}
+.final-no-header {
+  background: linear-gradient(135deg, #4a4048 0%, var(--charcoal) 100%);
+  color: var(--white);
+  padding: 28px 24px 22px;
+  text-align: center;
+}
+.final-no-emoji { font-size: 42px; margin-bottom: 10px; display: block; }
+.final-no-title {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 5vw, 28px);
+  font-weight: 700;
+}
+.final-no-body { padding: 24px; text-align: center; }
+.final-no-text {
+  font-size: 15px;
+  line-height: 1.78;
+  color: var(--ink);
+  margin-bottom: 18px;
+}
+.final-no-footer {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-top: 1px dashed var(--border);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+/* ── CONFETTI ── */
+.confetti-wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+.conf-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: confettiFall linear both;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── FLOATING HEARTS ── */
+.hearts-wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+.float-heart {
+  position: absolute;
+  font-size: 14px;
+  animation: floatHeart linear both;
+  opacity: 0;
+}
+@keyframes floatHeart {
+  0%   { transform: translateY(0) scale(0.5); opacity: 0; }
+  15%  { opacity: 0.9; }
+  100% { transform: translateY(-90vh) scale(1.2); opacity: 0; }
+}
+
+/* ── AIRPLANE TRAIL ── */
+.plane-trail {
+  position: fixed;
+  pointer-events: none;
+  z-index: 8;
+  top: 18%;
+  left: -80px;
+  animation: flyAcross 12s cubic-bezier(0.4,0,0.6,1) infinite;
+}
+@keyframes flyAcross {
+  0%   { left: -80px; top: 18%; opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { left: calc(100vw + 80px); top: 15%; opacity: 0; }
+}
+.plane-trail svg { width: 36px; }
+
+/* ── FLIP ANIMATION (first NO) ── */
+.flip-out {
+  animation: flipCard 0.5s cubic-bezier(0.55,0,0.45,1) forwards;
+}
+.flip-in {
+  animation: flipCardIn 0.5s cubic-bezier(0.55,0,0.45,1) both;
+}
+@keyframes flipCard {
+  0%   { transform: perspective(600px) rotateY(0); }
+  100% { transform: perspective(600px) rotateY(-90deg); opacity: 0; }
+}
+@keyframes flipCardIn {
+  0%   { transform: perspective(600px) rotateY(90deg); opacity: 0; }
+  100% { transform: perspective(600px) rotateY(0); opacity: 1; }
+}
+
+/* ── SHAKE ANIMATION ── */
+.shake {
+  animation: shake 0.5s cubic-bezier(0.36,0.07,0.19,0.97) both;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  15%      { transform: translateX(-8px); }
+  30%      { transform: translateX(8px); }
+  45%      { transform: translateX(-6px); }
+  60%      { transform: translateX(6px); }
+  75%      { transform: translateX(-3px); }
+  90%      { transform: translateX(3px); }
+}
+
+/* ── WIGGLE ── */
+.wiggle {
+  animation: wiggle 0.6s ease-in-out;
+}
+@keyframes wiggle {
+  0%,100% { transform: rotate(0deg); }
+  20%     { transform: rotate(-5deg); }
+  40%     { transform: rotate(5deg); }
+  60%     { transform: rotate(-3deg); }
+  80%     { transform: rotate(3deg); }
+}
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .dep-board-inner { animation: none; }
+}
+
+/* ── SCREEN: LANDING ── */
+#screen-landing {
+  padding-bottom: 40px;
+}
+.landing-top-spacer { height: 32px; }
+.landing-eyebrow-wrap {
+  padding: var(--gap-m) 0 var(--gap-s);
+}
+.landing-headline {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 6vw, 36px);
+  color: var(--red-dark);
+  text-align: center;
+  margin-bottom: 10px;
+}
+.landing-sub {
+  font-size: 15px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: var(--gap-m);
+  line-height: 1.65;
+}
+
+/* ── PAGE-LEVEL PADDING ── */
+.page-pad {
+  padding: var(--gap-m) 0 var(--gap-l);
+  width: 100%;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  border: none;
+  border-top: 1.5px dashed var(--border);
+  margin: var(--gap-m) 0;
+}
+
+/* ── SMALL COFFEE CUP INLINE SVG ── */
+.coffee-sign {
+  background: var(--blush);
+  border: 2px dashed var(--red-muted);
+  border-radius: 12px;
+  padding: 14px 20px;
+  text-align: center;
+  margin: 16px auto;
+  max-width: 260px;
+}
+.coffee-sign-text {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--red-dark);
+  margin-top: 8px;
+}
+
+/* ── BARCODE SVG ── */
+.bp-barcode {
+  padding: 12px 24px 16px;
+  text-align: center;
+  background: var(--white);
+}
+.bp-barcode-label {
+  font-family: var(--font-label);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+</style>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- ═══════════════════════════════════════════════════════
+     SKY BACKGROUND — shared across all screens
+══════════════════════════════════════════════════════════ -->
+<div class="sky-canvas" aria-hidden="true">
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+  <div class="cloud c4"></div>
+</div>
+
+<!-- Animated plane crossing the sky -->
+<div class="plane-trail" aria-hidden="true">
+  <svg viewBox="0 0 40 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M38 10 L26 5 L20 1 L14 5 L2 10 L14 15 L20 19 L26 15 Z" fill="#C8102E" opacity="0.7"/>
+    <path d="M18 10 L8 6 L8 14 Z" fill="#C8102E" opacity="0.5"/>
+    <path d="M36 9 L34 8 L28 10 L34 12 Z" fill="#7D1424" opacity="0.7"/>
+  </svg>
+</div>
+
+<!-- Hearts wrapper -->
+<div class="hearts-wrap" id="hearts-wrap" aria-hidden="true"></div>
+<!-- Confetti wrapper -->
+<div class="confetti-wrap" id="confetti-wrap" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+     TOP AIRLINE BAR + DEPARTURE BOARD
+══════════════════════════════════════════════════════════ -->
+<div class="airline-bar" role="banner">
+  <div class="airline-bar-logo">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.2"/>
+      <path d="M10 3 C10 3, 16 8, 16 10 C16 12 13 15 10 17 C7 15 4 12 4 10 C4 8 10 3 10 3Z" fill="white" opacity="0.25"/>
+      <path d="M3 10 Q7 7 10 10 Q13 13 17 10" stroke="white" stroke-width="1" fill="none"/>
+    </svg>
+    BOARDING CALL ☕
+  </div>
+  <div class="airline-bar-status">SPECIAL FLIGHT · BC-2024</div>
+</div>
+
+<div class="dep-board" role="marquee" aria-label="Departure board ticker">
+  <span class="dep-board-inner">
+    BC-2024 &nbsp;·&nbsp; DESTINATION: COFFEE DATE &nbsp;·&nbsp; STATUS: BOARDING NOW &nbsp;·&nbsp; GATE: YOUR HEART
+    <span class="dep-sep">✈</span>
+    ALL PASSENGERS: ONE TINY COFFEE REQUEST AWAITS YOUR CONSIDERATION
+    <span class="dep-sep">☕</span>
+    BOARDING PASS: ISSUED WITH HOPE AND A LITTLE NERVOUSNESS
+    <span class="dep-sep">✈</span>
+    BC-2024 &nbsp;·&nbsp; DESTINATION: COFFEE DATE &nbsp;·&nbsp; STATUS: BOARDING NOW &nbsp;·&nbsp; GATE: YOUR HEART
+    <span class="dep-sep">☕</span>
+    ALL PASSENGERS: ONE TINY COFFEE REQUEST AWAITS YOUR CONSIDERATION
+    <span class="dep-sep">✈</span>
+    BOARDING PASS: ISSUED WITH HOPE AND A LITTLE NERVOUSNESS
+    <span class="dep-sep">☕</span>
+  </span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 1 — LANDING / INVITATION
+══════════════════════════════════════════════════════════ -->
+<main>
+
+<section id="screen-landing" class="screen active" role="main" aria-label="Coffee invitation">
+
+  <div class="content">
+    <div class="landing-top-spacer"></div>
+
+    <div class="landing-eyebrow-wrap">
+      <div class="eyebrow">✈️ A Special Boarding Call</div>
+    </div>
+
+    <h1 class="landing-headline">Your next destination might be… coffee with me? ☕❤️</h1>
+
+    <p class="landing-sub">Dear passenger, we have a slightly unusual flight proposal for you. Your destination is a coffee date, your travel companion is a slightly nervous guy, and your only baggage allowance is a little curiosity. 😂</p>
+
+    <!-- BOARDING PASS CARD -->
+    <div class="boarding-pass" id="main-boarding-pass" role="article" aria-label="Boarding pass invitation">
+      <div class="bp-header">
+        <div class="bp-airline">☕ Boarding Call</div>
+        <div class="bp-class">SPECIAL CLASS</div>
+      </div>
+
+      <div class="bp-route">
+        <div class="bp-city">
+          <div class="bp-city-code">YOU</div>
+          <div class="bp-city-name">Origin · Right Now</div>
+        </div>
+        <div class="bp-arrow">
+          <div class="bp-plane-icon" aria-hidden="true">✈️</div>
+          <div class="bp-dash-line"></div>
+        </div>
+        <div class="bp-city">
+          <div class="bp-city-code">CFE</div>
+          <div class="bp-city-name">Coffee Date · Anytime</div>
+        </div>
+      </div>
+
+      <div class="bp-meta">
+        <div class="bp-field">
+          <div class="bp-field-label">Passenger</div>
+          <div class="bp-field-value">You 🤍</div>
+        </div>
+        <div class="bp-field">
+          <div class="bp-field-label">Companion</div>
+          <div class="bp-field-value">Me 🙈</div>
+        </div>
+        <div class="bp-field">
+          <div class="bp-field-label">Flight</div>
+          <div class="bp-field-value">BC-2024</div>
+        </div>
+        <div class="bp-field">
+          <div class="bp-field-label">Gate</div>
+          <div class="bp-field-value">Heart</div>
+        </div>
+        <div class="bp-field">
+          <div class="bp-field-label">Seat</div>
+          <div class="bp-field-value">Across Me</div>
+        </div>
+        <div class="bp-field">
+          <div class="bp-field-label">Class</div>
+          <div class="bp-field-value">Sincere</div>
+        </div>
+      </div>
+
+      <!-- Perforation -->
+      <div class="bp-perf" aria-hidden="true"></div>
+      <hr class="divider" style="margin:16px 24px 0;" aria-hidden="true">
+
+      <div class="bp-body">
+        <!-- Personal message -->
+        <div class="message-card">
+          <div class="message-heading">✉️ A little confession from me</div>
+          <div class="message-text">
+            <p>Hey! 😊</p>
+            <p>First of all, I'm sorry if I've been popping up in your DMs a little too much. I genuinely hope I haven't made you uncomfortable.</p>
+            <p>I know this might be a little unexpected, but I've noticed you since our college days — even though we went to different colleges. We've never really had a proper chance to talk, but you caught my attention, and honestly, I think I have a little crush on you. 🙈</p>
+            <p>So I thought I'd take a small chance instead of wondering 'what if?' Would you be open to grabbing a coffee sometime? I'd genuinely love to get to know you better, hear about your adventures, and discover the person behind those airport stories.</p>
+            <p>No pressure at all if you're not interested — I just wanted to be honest about how I feel and ask you properly. ☺️❤️</p>
+          </div>
+          <div class="message-footer">No booking fees. No expectations. Just one coffee. ☕</div>
+        </div>
+      </div>
+
+      <!-- Barcode -->
+      <div class="bp-barcode" aria-hidden="true">
+        <svg width="180" height="36" viewBox="0 0 180 36" fill="currentColor" style="color:var(--charcoal);opacity:0.7;">
+          <rect x="0"   y="0" width="2"  height="36"/>
+          <rect x="4"   y="0" width="4"  height="36"/>
+          <rect x="10"  y="0" width="2"  height="36"/>
+          <rect x="14"  y="0" width="6"  height="36"/>
+          <rect x="22"  y="0" width="2"  height="36"/>
+          <rect x="26"  y="0" width="4"  height="36"/>
+          <rect x="32"  y="0" width="2"  height="36"/>
+          <rect x="36"  y="0" width="6"  height="36"/>
+          <rect x="44"  y="0" width="2"  height="36"/>
+          <rect x="48"  y="0" width="4"  height="36"/>
+          <rect x="54"  y="0" width="2"  height="36"/>
+          <rect x="60"  y="0" width="2"  height="36"/>
+          <rect x="64"  y="0" width="6"  height="36"/>
+          <rect x="72"  y="0" width="2"  height="36"/>
+          <rect x="78"  y="0" width="4"  height="36"/>
+          <rect x="84"  y="0" width="2"  height="36"/>
+          <rect x="90"  y="0" width="2"  height="36"/>
+          <rect x="96"  y="0" width="6"  height="36"/>
+          <rect x="104" y="0" width="2"  height="36"/>
+          <rect x="108" y="0" width="4"  height="36"/>
+          <rect x="114" y="0" width="2"  height="36"/>
+          <rect x="118" y="0" width="6"  height="36"/>
+          <rect x="126" y="0" width="2"  height="36"/>
+          <rect x="130" y="0" width="4"  height="36"/>
+          <rect x="136" y="0" width="2"  height="36"/>
+          <rect x="140" y="0" width="2"  height="36"/>
+          <rect x="144" y="0" width="6"  height="36"/>
+          <rect x="152" y="0" width="2"  height="36"/>
+          <rect x="156" y="0" width="4"  height="36"/>
+          <rect x="162" y="0" width="2"  height="36"/>
+          <rect x="166" y="0" width="6"  height="36"/>
+          <rect x="174" y="0" width="2"  height="36"/>
+          <rect x="178" y="0" width="2"  height="36"/>
+        </svg>
+        <div class="bp-barcode-label">BC-2024 · COFFEE-DATE · SINCERE-CLASS</div>
+      </div>
+    </div>
+
+    <!-- THE QUESTION -->
+    <div class="question-section">
+      <h2 class="question-headline">So, would you like to fly into a coffee date with me? ☕✈️</h2>
+
+      <div class="btn-group" role="group" aria-label="Your response">
+        <button class="btn-primary" id="btn-yes-1" onclick="goYes()" aria-label="Yes, I accept the coffee date invitation">
+          YES! CLEAR ME FOR TAKEOFF ❤️
+        </button>
+        <div class="no-btn-zone" id="no-zone-1">
+          <button class="btn-secondary" id="btn-no-1" onclick="handleNo(1)" aria-label="No, not sure yet">
+            NO… NOT SURE YET 🙈
+          </button>
+        </div>
+        <div class="no-microcopy" id="no-microcopy-1" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div style="height:24px;"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 2 — FIRST NO (cabin announcement)
+══════════════════════════════════════════════════════════ -->
+<section id="screen-no1" class="screen" aria-label="Cabin announcement screen">
+  <div class="content page-pad">
+
+    <div class="announce-card" id="no1-card">
+      <div class="announce-header">
+        <div class="announce-icon" aria-hidden="true">✈️😭</div>
+        <h2 class="announce-title">Uh-Oh… We Have a Change of Destination!</h2>
+        <div class="announce-sub">TURBULENCE DETECTED · PLEASE STAY SEATED</div>
+      </div>
+      <div class="announce-body">
+        <div class="announce-text">
+          <p>Dear passenger, we regret to inform you that one hopeful guy's coffee-date dreams have encountered some unexpected turbulence. 😂</p>
+          <p>Before we divert this flight, may we offer you one tiny reason to reconsider?</p>
+          <p>I promise this isn't a proposal for a world tour. It's literally just coffee and a chance to get to know each other. ☕🙈</p>
+        </div>
+
+        <!-- Coffee cup with sign -->
+        <div class="coffee-sign">
+          <div class="coffee-bounce" role="img" aria-label="Coffee cup">
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="18" width="28" height="26" rx="4" fill="#C8102E" opacity="0.15" stroke="#C8102E" stroke-width="2"/>
+              <path d="M36 22 Q44 22 44 28 Q44 34 36 34" stroke="#C8102E" stroke-width="2" fill="none"/>
+              <path d="M12 44 Q8 44 8 44 L40 44 Q40 44 36 44" stroke="#C8102E" stroke-width="2"/>
+              <path d="M18 12 Q18 8 22 10" stroke="#C8102E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              <path d="M26 10 Q26 6 30 8" stroke="#C8102E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="coffee-sign-text">PLEASE CONSIDER MY APPLICATION. 🥹</div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="btn-makecase" onclick="goMakeCase()" aria-label="Okay, make your case">
+            OKAY, MAKE YOUR CASE 😂
+          </button>
+          <div class="no-btn-zone" id="no-zone-2">
+            <button class="btn-secondary" id="btn-no-2" onclick="handleNo(2)" aria-label="Still not interested">
+              NOPE, STILL NOT INTERESTED 🙈
+            </button>
+          </div>
+          <div class="no-microcopy" id="no-microcopy-2" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 3 — CAPTAIN'S ANNOUNCEMENT
+══════════════════════════════════════════════════════════ -->
+<section id="screen-captain" class="screen" aria-label="Captain's announcement screen">
+  <div class="content page-pad">
+
+    <div class="announce-card">
+      <div class="announce-header">
+        <div class="announce-icon" aria-hidden="true">🎙️</div>
+        <h2 class="announce-title">Captain's Announcement: One Tiny Request.</h2>
+        <div class="announce-sub">FLIGHT DECK COMMUNICATION · BC-2024</div>
+      </div>
+      <div class="announce-body">
+        <div class="announce-text">
+          <p>Ladies and gentlemen, this is your captain speaking. 😂</p>
+          <p>We have a slightly nervous passenger on board who would genuinely like the opportunity to get to know you.</p>
+          <p>He can't promise a five-star conversation every minute, but he can promise that the invitation is completely sincere.</p>
+        </div>
+
+        <ul class="itinerary" aria-label="Proposed itinerary">
+          <li><span>☕</span><span>One coffee.</span></li>
+          <li><span>💬</span><span>A little conversation.</span></li>
+          <li><span>😂</span><span>A few questionable jokes.</span></li>
+          <li><span>🤎</span><span>Two people discovering whether they enjoy each other's company.</span></li>
+        </ul>
+
+        <div class="announce-text">
+          <p>No long-haul commitment. No return-ticket drama. Just one coffee, if you'd like.</p>
+          <p>So, would you give this flight a chance?</p>
+        </div>
+
+        <div class="btn-group" style="margin-top:20px;">
+          <button class="btn-primary" onclick="goYes()" aria-label="Fine, one coffee it is">
+            FINEEE, ONE COFFEE IT IS! ☕❤️
+          </button>
+          <button class="btn-secondary" id="btn-convince" onclick="goCourtroom()" aria-label="I need more convincing">
+            I NEED MORE CONVINCING 😂
+          </button>
+          <button class="btn-ghost" id="btn-no-captain" onclick="handleNo('captain')" aria-label="My answer is still no">
+            SORRY, MY ANSWER IS STILL NO 🤍
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 4 — COURTROOM
+══════════════════════════════════════════════════════════ -->
+<section id="screen-court" class="screen" aria-label="Courtroom appeal screen">
+  <div class="content page-pad">
+
+    <div class="announce-card">
+      <div class="announce-header" style="background: linear-gradient(135deg, #2c1a1e 0%, #5a2030 100%);">
+        <div class="announce-icon" aria-hidden="true">⚖️😭</div>
+        <h2 class="announce-title">Objection, Your Honour!</h2>
+        <div class="announce-sub">THE CASE OF THE HOPEFUL COFFEE DATE</div>
+      </div>
+      <div class="announce-body">
+
+        <div class="evidence-grid" role="list" aria-label="Evidence presented">
+          <div class="evidence-card" role="listitem">
+            <div class="evidence-label">Exhibit A — Genuine Curiosity 🤎</div>
+            <div class="evidence-text">I'd genuinely like to know you beyond your Instagram profile and the occasional DM.</div>
+          </div>
+          <div class="evidence-card" role="listitem">
+            <div class="evidence-label">Exhibit B — Low-Risk Adventure ☕</div>
+            <div class="evidence-text">One coffee. A comfortable café. Two people having a conversation. No complicated travel itinerary required. 😂</div>
+          </div>
+          <div class="evidence-card" role="listitem">
+            <div class="evidence-label">Exhibit C — Emergency Awkwardness Protocol 😭</div>
+            <div class="evidence-text">If the conversation gets awkward, we can blame the coffee, the weather, or my questionable attempt at being smooth.</div>
+          </div>
+        </div>
+
+        <div class="announce-text" style="margin-top:16px; padding:16px; background:var(--blush); border-radius:12px;">
+          <p>Your Honour, I respectfully request one chance to get to know her better.</p>
+          <p style="margin-top:10px;">The defendant is guilty of having a little crush and an unreasonable amount of hope. 🥹❤️</p>
+          <p style="margin-top:10px;">However, the final decision belongs entirely to the passenger.</p>
+        </div>
+
+        <div class="btn-group" style="margin-top:20px;">
+          <button class="btn-primary" onclick="goYes()" aria-label="Case accepted, let's get coffee">
+            CASE ACCEPTED. LET'S GET COFFEE! ❤️
+          </button>
+          <button class="btn-ghost" id="btn-no-court" onclick="goFinalNo()" aria-label="The court has decided no">
+            THE COURT HAS DECIDED: NO 🤍
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 5 — YES / SUCCESS
+══════════════════════════════════════════════════════════ -->
+<section id="screen-yes" class="screen" aria-label="Coffee date accepted! Success screen">
+  <div class="content page-pad">
+
+    <div class="success-card">
+      <div class="success-header">
+        <div class="success-emoji" aria-hidden="true">🥹❤️</div>
+        <h2 class="success-title">PASSENGER APPROVED!</h2>
+        <div class="success-sub">✈️ CLEARED FOR TAKEOFF ✈️</div>
+      </div>
+      <div class="success-body">
+        <div class="success-text">
+          <p>Ladies and gentlemen, we have some lovely news! Our passenger has accepted the invitation. 😂✈️</p>
+          <p>Okay, jokes aside — you just made me smile. A lot.</p>
+          <p>Whenever you're comfortable, we can pick a café, decide on a time that works for you, and make this little coffee adventure happen. ☕🤎</p>
+        </div>
+
+        <div class="status-grid" role="list" aria-label="Booking confirmation">
+          <div class="status-item" role="listitem">
+            <div class="status-key">Destination</div>
+            <div class="status-val">A Coffee Date ☕</div>
+          </div>
+          <div class="status-item" role="listitem">
+            <div class="status-key">Companion</div>
+            <div class="status-val">Me 🙈</div>
+          </div>
+          <div class="status-item" role="listitem">
+            <div class="status-key">Status</div>
+            <div class="status-val">Looking Forward to It ❤️</div>
+          </div>
+          <div class="status-item" role="listitem">
+            <div class="status-key">Departure</div>
+            <div class="status-val">Whenever You're Comfortable</div>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="showPlanMessage()" id="btn-plan" style="width:100%;" aria-label="Let's plan our coffee date">
+          LET'S PLAN OUR COFFEE DATE ☕
+        </button>
+        <div id="plan-msg" style="display:none; margin-top:14px; background:var(--blush); border-radius:12px; padding:16px; font-size:14px; color:var(--ink); line-height:1.7; text-align:center;">
+          Just reply to the message where I shared this, and we'll figure out a café and time that works perfectly for you. 😊☕
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 6 — FINAL NO
+══════════════════════════════════════════════════════════ -->
+<section id="screen-finalno" class="screen" aria-label="Thank you screen, graceful decline">
+  <div class="content page-pad">
+
+    <div class="final-no-card">
+      <div class="final-no-header">
+        <span class="final-no-emoji" aria-hidden="true">🤍✈️</span>
+        <h2 class="final-no-title">Flight Completed. No Hard Feelings.</h2>
+      </div>
+      <div class="final-no-body">
+        <div class="final-no-text">
+          <p>Thank you for giving my little coffee proposal a moment of your time. 😊</p>
+          <p style="margin-top:12px;">No awkwardness, no hard feelings, and no pressure. I genuinely wish you lovely adventures, smooth flights, and plenty of reasons to smile. ☕🌷</p>
+        </div>
+        <div class="final-no-footer">
+          Thank you for being honest. Have a lovely day. ❤️
+        </div>
+      </div>
+    </div>
+
+    <!-- Soft landing illustration -->
+    <div style="text-align:center; margin-top:28px; opacity:0.45;" aria-hidden="true">
+      <svg width="120" height="54" viewBox="0 0 120 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- runway -->
+        <rect x="10" y="46" width="100" height="4" rx="2" fill="#C8102E" opacity="0.3"/>
+        <rect x="20" y="47" width="12" height="2" rx="1" fill="white" opacity="0.6"/>
+        <rect x="40" y="47" width="12" height="2" rx="1" fill="white" opacity="0.6"/>
+        <rect x="60" y="47" width="12" height="2" rx="1" fill="white" opacity="0.6"/>
+        <rect x="80" y="47" width="12" height="2" rx="1" fill="white" opacity="0.6"/>
+        <!-- airplane landing -->
+        <g transform="translate(50,18) rotate(-8)">
+          <path d="M18 7 L8 4 L0 7 L8 10 Z" fill="#C8102E" opacity="0.7"/>
+          <path d="M8 7 L3 4 L3 10 Z" fill="#7D1424" opacity="0.6"/>
+          <rect x="16" y="6" width="3" height="2" rx="1" fill="#7D1424" opacity="0.5"/>
+        </g>
+        <!-- dotted path -->
+        <path d="M20 20 Q50 8 80 35" stroke="#C8102E" stroke-width="1.5" stroke-dasharray="4 4" fill="none" opacity="0.3"/>
+        <!-- heart fading -->
+        <text x="92" y="22" font-size="14" opacity="0.4" fill="#C8102E">🤍</text>
+      </svg>
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT — STATE MACHINE + INTERACTIONS
+══════════════════════════════════════════════════════════ -->
+<script>
+/* ── STATE ── */
+let noClickCount = 0;  // total NO-ish clicks across all screens
+let dodgeCount = 0;    // how many times the no btn has dodged
+const MAX_DODGES = 3;
+
+const NO_MESSAGES = [
+  "Turbulence detected. Please try again. 😂",
+  "The NO button has requested a little more time. ✈️",
+  "Ground control, we have a situation. 😭",
+  "That button is experiencing commitment issues. ☕",
+  "Please remain seated while this button completes its manoeuvre. 😂",
+  "Your captain is trying very hard not to panic. 🥹",
+  "Even the autopilot believes in this coffee proposal. 🙈",
+];
+
+/* ── SCREEN NAVIGATION ── */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.setAttribute('aria-hidden', 'true');
+  });
+  const target = document.getElementById(id);
+  if (target) {
+    target.classList.add('active');
+    target.removeAttribute('aria-hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+/* ── YES PATH ── */
+function goYes() {
+  showScreen('screen-yes');
+  spawnHearts(18);
+  spawnConfetti(60);
+}
+
+/* ── MAKE YOUR CASE ── */
+function goMakeCase() {
+  showScreen('screen-captain');
+}
+
+/* ── COURTROOM ── */
+function goCourtroom() {
+  showScreen('screen-court');
+}
+
+/* ── FINAL NO ── */
+function goFinalNo() {
+  showScreen('screen-finalno');
+}
+
+/* ── PLAN MESSAGE ── */
+function showPlanMessage() {
+  const msg = document.getElementById('plan-msg');
+  const btn = document.getElementById('btn-plan');
+  if (msg) {
+    msg.style.display = 'block';
+    msg.classList.add('wiggle');
+    setTimeout(() => msg.classList.remove('wiggle'), 600);
+  }
+  if (btn) btn.style.display = 'none';
+}
+
+/* ── NO BUTTON HANDLER ── */
+function handleNo(context) {
+  noClickCount++;
+
+  // First NO from landing page — animate flip & go to no1 screen
+  if (context === 1 && noClickCount === 1) {
+    const bp = document.getElementById('main-boarding-pass');
+    if (bp) {
+      bp.classList.add('flip-out');
+      setTimeout(() => {
+        showScreen('screen-no1');
+        const card = document.getElementById('no1-card');
+        if (card) card.classList.add('flip-in');
+      }, 450);
+    } else {
+      showScreen('screen-no1');
+    }
+    return;
+  }
+
+  // NO from screen-no1 — go to final no
+  if (context === 2) {
+    tryDodge('btn-no-2', 'no-microcopy-2', goFinalNo);
+    return;
+  }
+
+  // NO from captain's screen
+  if (context === 'captain') {
+    goFinalNo();
+    return;
+  }
+
+  // Subsequent NOs from landing (shouldn't normally reach here)
+  tryDodge('btn-no-1', 'no-microcopy-1', () => showScreen('screen-no1'));
+}
+
+/* ── DODGE LOGIC ── */
+function tryDodge(btnId, microId, onCommit) {
+  const btn = document.getElementById(btnId);
+  const micro = document.getElementById(microId);
+
+  if (dodgeCount >= MAX_DODGES || !btn) {
+    // Max dodges reached — honour the click
+    onCommit();
+    return;
+  }
+
+  dodgeCount++;
+  const msg = NO_MESSAGES[Math.floor(Math.random() * NO_MESSAGES.length)];
+
+  // Show microcopy
+  if (micro) {
+    micro.textContent = msg;
+    micro.classList.add('visible');
+  }
+
+  // Dodge: move within a limited safe zone
+  const zone = btn.closest('.no-btn-zone') || btn.parentElement;
+  const zoneW = zone ? zone.offsetWidth : 300;
+  const maxShift = Math.min(60, (zoneW - btn.offsetWidth) / 2 - 8);
+  const direction = dodgeCount % 2 === 0 ? 1 : -1;
+  const shift = direction * (20 + Math.random() * Math.max(0, maxShift - 20));
+
+  btn.style.transition = 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1)';
+  btn.style.transform = `translateX(${shift}px)`;
+
+  // Shake the microcopy
+  if (micro) micro.classList.add('shake');
+  setTimeout(() => { if (micro) micro.classList.remove('shake'); }, 500);
+
+  // After 2.5 seconds, reset position for another possible attempt
+  setTimeout(() => {
+    btn.style.transform = 'translateX(0)';
+  }, 2500);
+}
+
+/* ── HEARTS ── */
+function spawnHearts(count) {
+  const wrap = document.getElementById('hearts-wrap');
+  if (!wrap) return;
+  // check reduced motion
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const h = document.createElement('span');
+      h.className = 'float-heart';
+      h.textContent = ['❤️','🤎','🥹','☕','💫'][Math.floor(Math.random() * 5)];
+      h.style.left = (Math.random() * 92) + '%';
+      h.style.bottom = '0';
+      const dur = 3 + Math.random() * 4;
+      h.style.animationDuration = dur + 's';
+      h.style.animationDelay = '0s';
+      wrap.appendChild(h);
+      setTimeout(() => h.remove(), dur * 1000 + 100);
+    }, i * 120);
+  }
+}
+
+/* ── CONFETTI ── */
+function spawnConfetti(count) {
+  const wrap = document.getElementById('confetti-wrap');
+  if (!wrap) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#C8102E','#7D1424','#F8E2E2','#FFFFFF','#FFD700','#FF8FAB'];
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'conf-piece';
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.top = '-10px';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      const w = 5 + Math.random() * 8;
+      p.style.width = w + 'px';
+      p.style.height = w + 'px';
+      const dur = 2.5 + Math.random() * 2.5;
+      p.style.animationDuration = dur + 's';
+      p.style.animationDelay = '0s';
+      wrap.appendChild(p);
+      setTimeout(() => p.remove(), dur * 1000 + 100);
+    }, i * 50);
+  }
+}
+
+/* ── INIT: ambient floating hearts on landing ── */
+(function initAmbient() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Occasional gentle hearts while on landing screen
+  setInterval(() => {
+    const active = document.querySelector('.screen.active');
+    if (active && active.id === 'screen-landing') {
+      const wrap = document.getElementById('hearts-wrap');
+      if (!wrap) return;
+      const h = document.createElement('span');
+      h.className = 'float-heart';
+      h.textContent = ['❤️','☕','✨'][Math.floor(Math.random() * 3)];
+      h.style.left = (Math.random() * 90) + '%';
+      h.style.bottom = '0';
+      const dur = 6 + Math.random() * 5;
+      h.style.animationDuration = dur + 's';
+      h.style.animationDelay = '0s';
+      h.style.fontSize = (10 + Math.random() * 8) + 'px';
+      wrap.appendChild(h);
+      setTimeout(() => h.remove(), dur * 1000 + 100);
+    }
+  }, 3500);
+})();
+
+/* ── KEYBOARD: make sure all interactive elements accessible ── */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    const el = document.activeElement;
+    if (el && el.tagName === 'BUTTON') {
+      e.preventDefault();
+      el.click();
+    }
+  }
+});
+</script>
